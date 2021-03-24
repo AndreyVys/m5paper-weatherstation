@@ -12,38 +12,34 @@
 #include "WindIcons.c"
 
 // Change to your timezone
-#define timezone  7
+#define timezone  3
 
 // Set location and API key
-String Location = "Vietnam,VN"; // Change to your location
-String API_Key  = "xxxxxxxxxxxxx";
+String LocationCity = "Moscow";
+String LocationCountry = "RU";
+String API_Key  = "xxxxxxxxxxxxxxxx";
+String Language = "ru";
 
 int wifi_signal;
-uint8_t global_time_synced = false;
 
 // SHT30 temperature and humidity parameters
-float tem = 0.0;
-float hum = 0.0;
+float local_temp = 0.0;
+float local_humidity = 0.0;
 // Openweathermap parameters
-// int temp;
-// int humidity;
-uint_fast8_t visibility = 0;
+int temp = 0;
+uint_fast8_t humidity = 0;
+float visibility = 0.0;
 uint_fast8_t pressure = 0;
 float wind_speed = 0.0;
 float wind_degree = 0.0;
 
-const char* weatherId="";
-const char* weatherMain="";
 const char* weatherDesc="";
 const char* weatherIcon="";
+const char* weatherCity="";
+const char* weatherCountry="";
 
-const char* upweatherId="";
-const char* upweatherMain="";
-const char* upweatherDesc="";
-const char* upweatherIcon="";
-
-time_t upsunrise, sunrise;
-time_t upsunset, sunset;
+time_t sunrise = 0;
+time_t sunset = 0;
 
 constexpr float FONT_SIZE_LARGE = 1.8;
 constexpr float FONT_SIZE_MEDIUM = 1.0;
@@ -64,12 +60,12 @@ LGFX_Sprite WIcons(&gfx);
 LGFX_Sprite SRSSIcons(&gfx);
 
 //#########################################################################################
-inline int syncNTPTimeVN(void)
+inline int syncNTPTimeRequest(void)
 {
-  constexpr auto NTP_SERVER1 = "2.vn.pool.ntp.org";
-  constexpr auto NTP_SERVER2 = "1.asia.pool.ntp.org";
-  constexpr auto NTP_SERVER3 = "3.asia.pool.ntp.org";
-  constexpr auto TIME_ZONE = "ICT-7";
+  constexpr auto NTP_SERVER1 = "0.ru.pool.ntp.org";
+  constexpr auto NTP_SERVER2 = "1.ru.pool.ntp.org";
+  constexpr auto NTP_SERVER3 = "2.ru.pool.ntp.org";
+  constexpr auto TIME_ZONE = "MSK-3";
 
   auto datetime_setter = [](const tm &datetime) {
     rtc_time_t time{
@@ -90,197 +86,6 @@ inline int syncNTPTimeVN(void)
   return syncNTPTime(datetime_setter, TIME_ZONE, NTP_SERVER1, NTP_SERVER2, NTP_SERVER3);
 }
 //#########################################################################################
-void handleBtnPPress(void)
-{
-  xSemaphoreTake(xMutex, portMAX_DELAY);
-  prettyEpdRefresh(gfx);
-  gfx.setTextSize(FONT_SIZE_SMALL);
-
-  gfx.startWrite();
-  gfx.setCursor(30, 30);
-  if (!syncNTPTimeVN())
-  {
-    gfx.println("Succeeded to sync time");
-    struct tm timeInfo;
-    if (getLocalTime(&timeInfo))
-    {
-      gfx.setCursor(30, 80);
-      gfx.print("getLocalTime:");
-      gfx.println(&timeInfo, "%Y/%m/%d %H:%M:%S");
-    }
-  }
-  else
-  {
-    gfx.println("Failed to sync time");
-  }
-
-  rtc_date_t date;
-  rtc_time_t time;
-
-  // Get RTC
-  M5.RTC.getTime(&time);
-  M5.RTC.getDate(&date);
-  gfx.setCursor(30, 130);
-  gfx.print("RTC               :");
-  gfx.printf("%04d/%02d/%02d ", date.year, date.mon, date.day);
-  gfx.printf("%02d:%02d:%02d", time.hour, time.min, time.sec);
-  gfx.endWrite();
-
-  delay(1000);
-
-  gfx.setTextSize(FONT_SIZE_LARGE);
-  xSemaphoreGive(xMutex);
-}
-//#########################################################################################
-inline void handleBtnRPress(void)
-{
-  xSemaphoreTake(xMutex, portMAX_DELAY);
-  prettyEpdRefresh(gfx);
-  xSemaphoreGive(xMutex);
-}
-//#########################################################################################
-void handleBtnLPress(void)
-{
-  xSemaphoreTake(xMutex, portMAX_DELAY);
-  prettyEpdRefresh(gfx);
-  gfx.setCursor(50, 50);
-  gfx.setTextSize(FONT_SIZE_SMALL);
-  gfx.print("Goodbye...");
-  gfx.waitDisplay();
-  M5.disableEPDPower();
-  M5.disableEXTPower();
-  M5.disableMainPower();
-  esp_deep_sleep_start();
-  while (true)
-    ;
-  xSemaphoreGive(xMutex);
-}
-//#########################################################################################
-void handleButton(void *pvParameters)
-{
-  while (true)
-  {
-    delay(500);
-    M5.update();
-    if (M5.BtnP.isPressed())
-    {
-      handleBtnPPress();
-    }
-    else if (M5.BtnR.isPressed())
-    {
-      handleBtnRPress();
-    }
-    else if (M5.BtnL.isPressed())
-    {
-      handleBtnLPress();
-    }
-  }
-}
-//#########################################################################################
-void setup(void)
-{
-  constexpr uint_fast16_t WIFI_CONNECT_RETRY_MAX = 60; // 10 = 5s
-  constexpr uint_fast16_t WAIT_ON_FAILURE = 2000;
-  M5.begin(false, true, true, true, true);
-  M5.SHT30.Begin();
-  M5.RTC.begin();
-
-  WiFi.begin(WiFiInfo::SSID, WiFiInfo::PASS);
-
-  gfx.init();
-  gfx.setEpdMode(epd_mode_t::epd_fast);
-  gfx.setRotation(1);
-  gfx.setFont(&fonts::lgfxJapanMinchoP_40);
-  gfx.setTextSize(FONT_SIZE_SMALL);
-
-  gfx.print("Connecting to Wi-Fi network");
-  for (int cnt_retry = 0;
-       cnt_retry < WIFI_CONNECT_RETRY_MAX && !WiFi.isConnected();
-       cnt_retry++)
-  {
-    delay(500);
-    gfx.print(".");
-  }
-  gfx.println("");
-  if (WiFi.isConnected())
-  {
-    wifi_signal = WiFi.RSSI(); // Get Wifi Signal strength now, because the WiFi will be turned off to save power!
-    gfx.print("Local IP: ");
-    gfx.println(WiFi.localIP());
-  }
-  else
-  {
-    gfx.println("Failed to connect to a Wi-Fi network");
-    delay(WAIT_ON_FAILURE);
-  }
-
-  xMutex = xSemaphoreCreateMutex();
-  if (xMutex != nullptr)
-  {
-    xSemaphoreGive(xMutex);
-    xTaskCreatePinnedToCore(handleButton, "handleButton", 4096, nullptr, 1, nullptr, 1);
-  }
-  else
-  {
-    gfx.println("Failed to create a task for buttons");
-  }
-  gfx.println("Init done");
-  delay(1000);
-  gfx.setTextSize(FONT_SIZE_LARGE);
-  prettyEpdRefresh(gfx);
-  gfx.setCursor(0, 0);
-  
-}
-//#########################################################################################
-void MakehttpRequest()
-{
-  HTTPClient http;  // Declare an object of class HTTPClient
- 
-  // specify request destination
-  http.begin("http://api.openweathermap.org/data/2.5/weather?q=" + Location + "&APPID=" + API_Key);  // !!
- 
-  int httpCode = http.GET();  // Sending the request
- 
-  if (httpCode > 0)  // Checking the returning code
-    {
-      String payload = http.getString();   // Getting the request response payload
- 
-      DynamicJsonBuffer jsonBuffer(512);
- 
-      // Parse JSON object
-      JsonObject& root = jsonBuffer.parseObject(payload);
-      if (!root.success())
-      {
-        // gfx.print("N/A"); // not initialized
-        upweatherId   = weatherId;
-        upweatherMain = weatherMain;
-        upweatherDesc = weatherDesc;
-        upweatherIcon = weatherIcon;
-        upsunrise     = sunrise;
-        upsunset      = sunset;
-      return;
-      }
-      else
-      {
-      // temp        = (int)(root["main"]["temp"]) - 273.15;            // Get temperature in °C
-      // humidity    = root["main"]["humidity"];                        // Get humidity in %
-      visibility = (uint_fast8_t)root["visibility"];                    // Get visibility in m
-      pressure    = (uint_fast8_t)(root["main"]["pressure"]);           // Get pressure in bar
-      wind_speed  = (float)(root["wind"]["speed"]);                     // Get wind speed in m/s
-      wind_degree = (float)(root["wind"]["deg"]);                       // Get wind degree in °
-
-      upweatherId   = (const char*)(root["weather"][0]["id"]);
-      upweatherMain = (const char*)(root["weather"][0]["main"]);  
-      upweatherDesc = (const char*)(root["weather"][0]["description"]);
-      upweatherIcon = (const char*)(root["weather"][0]["icon"]);
- 
-      upsunrise = (root["sys"]["sunrise"]);
-      upsunset = (root["sys"]["sunset"]);
-      }
-    }
-  http.end();   // Close connection
-}
-//#########################################################################################
 void showTHPInfo(float temperature, float humidity, uint_fast8_t pressureinfo, uint_fast16_t offset_x, uint_fast16_t offset_y)
 {
   // Print temperature value
@@ -290,8 +95,8 @@ void showTHPInfo(float temperature, float humidity, uint_fast8_t pressureinfo, u
   gfx.setCursor(offset_x + 190, offset_y);
   gfx.printf("%02.1f%%", humidity);
   // Print pressure value
-  gfx.setCursor(offset_x + 385, offset_y);
-  gfx.printf("%04d\r\n", pressureinfo);
+  gfx.setCursor(offset_x + 370, offset_y);
+  gfx.printf("%03dмм\r\n", pressureinfo-pressureinfo/3); //pressure in mm
   
   // Draw temperature icon
   THPIcons.createSprite(112, 128);
@@ -315,11 +120,12 @@ void showTHPInfo(float temperature, float humidity, uint_fast8_t pressureinfo, u
   THPIcons.pushSprite(offset_x + 370, offset_y + 55);
 }
 //#########################################################################################
-void showWeatherInfo(const char* weatherDescription, uint_fast16_t offset_x, uint_fast16_t offset_y)
+void showWeatherInfo(uint_fast16_t offset_x, uint_fast16_t offset_y)
 {
+
   // Print weather description
   gfx.setCursor(offset_x, offset_y);
-  gfx.printf("%s\r\n", weatherDescription);
+  gfx.printf("%s\r\n", weatherDesc);
   
   // Draw weather icon
   WeatherIcons.createSprite(140, 121);
@@ -362,13 +168,20 @@ void showWeatherInfo(const char* weatherDescription, uint_fast16_t offset_x, uin
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC50D);
   else if (0 == strcmp(weatherIcon,"50n"))
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC50N);
-  else
-  {
-    gfx.setCursor(offset_x, offset_y);
-    gfx.printf("Loading..........\r\n");
-    WeatherIcons.pushImage(0, 0, 120, 120, (uint16_t *)LOADING120x120);
-  }
+  // else
+  // {
+     // gfx.setCursor(offset_x, offset_y);
+     // gfx.printf("Загрузка........\r\n");
+     // WeatherIcons.pushImage(0, 0, 120, 120, (uint16_t *)LOADING120x120);
+  // }
   WeatherIcons.pushSprite(offset_x + 50, offset_y + 80);
+
+  // Print temperature value from openweathermap
+  gfx.setCursor(offset_x, offset_y+220);
+  gfx.printf("%02d°C", temp);
+  // Print humidity value from openweathermap
+  gfx.setCursor(offset_x + 190, offset_y+220);
+  gfx.printf("%02u%%", humidity);
 }
 //#########################################################################################
 void showSunriseSunset(uint_fast16_t offset_x, uint_fast16_t offset_y)
@@ -382,8 +195,8 @@ void showSunriseSunset(uint_fast16_t offset_x, uint_fast16_t offset_y)
 
   // Change sunrise time to local time
   // time_t returns the time since the Epoch (00:00:00 UTC, January 1, 1970), measured in seconds
-  int h_sunrise = ((upsunrise + timezone * 3600) / 3600) % 24;
-  int m_sunrise = ((upsunrise + timezone * 3600) / 60) % 60;
+  int h_sunrise = ((sunrise + timezone * 3600) / 3600) % 24;
+  int m_sunrise = ((sunrise + timezone * 3600) / 60) % 60;
   // int s_sunrise = (upsunrise + timezone * 3600) % 60;
   
   // Print sunrise time in hh:mm format
@@ -398,8 +211,8 @@ void showSunriseSunset(uint_fast16_t offset_x, uint_fast16_t offset_y)
   SRSSIcons.pushSprite(offset_x, offset_y + 70);
   // Print sunrise time in hh:mm format
   // Change sunset time to local time
-  int h_sunset = ((upsunset + timezone * 3600) / 3600) % 24;
-  int m_sunset = ((upsunset + timezone * 3600) / 60) % 60;
+  int h_sunset = ((sunset + timezone * 3600) / 3600) % 24;
+  int m_sunset = ((sunset + timezone * 3600) / 60) % 60;
   // int s_sunset = (upsunset + timezone * 3600) % 60;
   
   // Print sunset time in hh:mm format
@@ -415,11 +228,9 @@ void showSunriseSunset(uint_fast16_t offset_x, uint_fast16_t offset_y)
   
   // Print visibility value in km
   gfx.setCursor(offset_x + 75, offset_y + 150);
-  gfx.printf("%dkm\r\n", (visibility/1000));
+  gfx.printf("%.1fкм\r\n", visibility/1000.0);
 }
-
 //#########################################################################################
-
 void showStatusInfo(uint_fast16_t x, uint_fast16_t y, int rssi)
 {
   // WiFi Information
@@ -429,7 +240,7 @@ void showStatusInfo(uint_fast16_t x, uint_fast16_t y, int rssi)
   
   // Battery Information
   gfx.setCursor(x + 200, y);
-  gfx.printf("BAT: ");
+  gfx.printf("Бат: ");
   uint32_t vol = M5.getBatteryVoltage();
     if(vol < 3300)
     {
@@ -451,7 +262,6 @@ void showStatusInfo(uint_fast16_t x, uint_fast16_t y, int rssi)
     uint8_t percentage = battery * 100;
     gfx.printf("%d%%\r\n", percentage);
 }
-
 //#########################################################################################
 void showWindInfo(float windspeed, float winddegree, uint_fast16_t offset_x, uint_fast16_t offset_y) 
 {
@@ -461,12 +271,12 @@ void showWindInfo(float windspeed, float winddegree, uint_fast16_t offset_x, uin
 
   gfx.setCursor(offset_x + 80, offset_y);
   gfx.setTextSize(FONT_SIZE_SMALL);
-  gfx.println("Wind Info");
+  gfx.println("Ветер");
   gfx.setTextSize(FONT_SIZE_MEDIUM);
   
   // Print wind speed and wind degree
   gfx.setCursor(offset_x + 160, offset_y + 50);
-  gfx.printf("%02.1fm/s\r\n", windspeed);
+  gfx.printf("%02.1fм/с\r\n", windspeed);
   gfx.setCursor(offset_x + 160, offset_y + 100);
   gfx.printf("%02.1f°\r\n", winddegree);
   gfx.setCursor(offset_x + 160, offset_y + 150);
@@ -555,62 +365,308 @@ void showWindInfo(float windspeed, float winddegree, uint_fast16_t offset_x, uin
   else
   {
     gfx.setCursor(offset_x + 150, offset_y);
-    gfx.printf("...m/s\r\n");
+    gfx.printf("...м/с\r\n");
     gfx.setCursor(offset_x + 150, offset_y + 50);
     gfx.printf("...°\r\n");
     gfx.setCursor(offset_x + 150, offset_y + 100);
-    gfx.printf("Loading\r\n");
+    gfx.printf("Загрузка\r\n");
     WIcons.pushImage(0, 0, 144, 144, (uint16_t *)CALM144x144);
   }
   WIcons.pushSprite(offset_x, offset_y + 50);
 }
 //#########################################################################################
+void MakehttpRequest()
+{
+ HTTPClient http;  // Declare an object of class HTTPClient
+ 
+    // specify request destination
+http.begin("http://api.openweathermap.org/data/2.5/weather?q=" + LocationCity + "," + LocationCountry + "&APPID=" + API_Key + "&lang=" + Language);  // !!
+ 
+int httpCode = http.GET();  // Sending the request
 
+if (httpCode == 200)  // Checking the returning code
+    {
+       String payload = http.getString();   // Getting the request response payload
+       StaticJsonDocument<1024> doc;
+       // Parse JSON object
+       DeserializationError error = deserializeJson(doc, payload);
+       if (error)
+       {
+       return;
+       }
+       else
+       {
+        /*
+        String input;
+
+        StaticJsonDocument<1024> doc;
+
+        DeserializationError error = deserializeJson(doc, input);
+
+        if (error) {
+          Serial.print(F("deserializeJson() failed: "));
+          Serial.println(error.f_str());
+          return;
+        }
+
+        float coord_lon = doc["coord"]["lon"]; // 40.1912
+        float coord_lat = doc["coord"]["lat"]; // 59.9642
+
+        JsonObject weather_0 = doc["weather"][0];
+        int weather_0_id = weather_0["id"]; // 804
+        const char* weather_0_main = weather_0["main"]; // "Clouds"
+        const char* weather_0_description = weather_0["description"]; // "пасмурно"
+        const char* weather_0_icon = weather_0["icon"]; // "04d"
+
+        const char* base = doc["base"]; // "stations"
+
+        JsonObject main = doc["main"];
+        float main_temp = main["temp"]; // 273.09
+        float main_feels_like = main["feels_like"]; // 268.36
+        float main_temp_min = main["temp_min"]; // 273.09
+        float main_temp_max = main["temp_max"]; // 273.09
+        int main_pressure = main["pressure"]; // 1012
+        int main_humidity = main["humidity"]; // 96
+        int main_sea_level = main["sea_level"]; // 1012
+        int main_grnd_level = main["grnd_level"]; // 993
+
+        int visibility = doc["visibility"]; // 10000
+
+        JsonObject wind = doc["wind"];
+        float wind_speed = wind["speed"]; // 3.8
+        int wind_deg = wind["deg"]; // 248
+        float wind_gust = wind["gust"]; // 11.17
+
+        int clouds_all = doc["clouds"]["all"]; // 100
+
+        long dt = doc["dt"]; // 1616573904
+
+        JsonObject sys = doc["sys"];
+        const char* sys_country = sys["country"]; // "RU"
+        long sys_sunrise = sys["sunrise"]; // 1616555323
+        long sys_sunset = sys["sunset"]; // 1616600530
+
+        int timezone = doc["timezone"]; // 10800
+        long id = doc["id"]; // 550512
+        const char* name = doc["name"]; // "Харовск"
+        int cod = doc["cod"]; // 200
+      */
+         JsonObject main = doc["main"];
+         temp =        (float)main["temp"]-273.15;                      // Get temperature in °C
+         humidity =    (uint_fast8_t)main["humidity"];                     // Get humidity in %
+         pressure =    (uint_fast8_t)main["pressure"];            // Get pressure in bar
+         visibility =  (float)doc["visibility"];         // Get visibility in m
+         weatherCity = (const char*)doc["name"];
+
+         JsonObject wind = doc["wind"];
+         wind_speed =  (float)wind["speed"];                    // Get wind speed in m/s
+         wind_degree = (float)wind["deg"];                     // Get wind degree in °
+
+         JsonObject weather = doc["weather"][0];
+         weatherDesc = (const char*)weather["description"];  
+         weatherIcon = (const char*)weather["icon"];
+
+         JsonObject sys = doc["sys"];
+         sunrise = (time_t)sys["sunrise"];
+         sunset = (time_t)sys["sunset"];
+         weatherCountry = (const char*)sys["country"];
+       }
+     }
+http.end();   // Close connection
+  
+}
+//#########################################################################################
+void handleBtnPPress(void)
+{
+  xSemaphoreTake(xMutex, portMAX_DELAY);
+  prettyEpdRefresh(gfx);
+  gfx.setTextSize(FONT_SIZE_SMALL);
+
+  gfx.startWrite();
+  gfx.setCursor(30, 30);
+  if (!syncNTPTimeRequest())
+  {
+    gfx.println("Время обновлено успешно");
+    struct tm timeInfo;
+    if (getLocalTime(&timeInfo))
+    {
+      gfx.setCursor(30, 80);
+      gfx.print("Локальное время:");
+      gfx.println(&timeInfo, "%Y/%m/%d %H:%M:%S");
+    }
+  }
+  else
+  {
+    gfx.println("Ошибка обновления времени");
+  }
+
+  rtc_date_t date;
+  rtc_time_t time;
+
+  // Get RTC
+  M5.RTC.getTime(&time);
+  M5.RTC.getDate(&date);
+  gfx.setCursor(30, 130);
+  gfx.print("Внутренние часы:");
+  gfx.printf("%04d/%02d/%02d ", date.year, date.mon, date.day);
+  gfx.printf("%02d:%02d:%02d", time.hour, time.min, time.sec);
+  gfx.endWrite();
+
+  delay(1000);
+
+  gfx.setTextSize(FONT_SIZE_LARGE);
+  xSemaphoreGive(xMutex);
+}
+//#########################################################################################
+inline void handleBtnRPress(void)
+{
+  xSemaphoreTake(xMutex, portMAX_DELAY);
+  prettyEpdRefresh(gfx);
+  MakehttpRequest();
+  xSemaphoreGive(xMutex);
+}
+//#########################################################################################
+void handleBtnLPress(void)
+{
+  xSemaphoreTake(xMutex, portMAX_DELAY);
+  prettyEpdRefresh(gfx);
+  gfx.setCursor(50, 50);
+  gfx.setTextSize(FONT_SIZE_SMALL);
+  gfx.print("Выключение...");
+  gfx.waitDisplay();
+  M5.disableEPDPower();
+  M5.disableEXTPower();
+  M5.disableMainPower();
+  esp_deep_sleep_start();
+  while (true)
+    ;
+  xSemaphoreGive(xMutex);
+}
+//#########################################################################################
+void handleButton(void *pvParameters)
+{
+  while (true)
+  {
+    delay(500);
+    M5.update();
+    if (M5.BtnP.isPressed())
+    {
+      handleBtnPPress();
+    }
+    else if (M5.BtnR.isPressed())
+    {
+      handleBtnRPress();
+    }
+    else if (M5.BtnL.isPressed())
+    {
+      handleBtnLPress();
+    }
+  }
+}
+//#########################################################################################
+void setup(void)
+{
+  constexpr uint_fast16_t WIFI_CONNECT_RETRY_MAX = 60; // 10 = 5s
+  constexpr uint_fast16_t WAIT_ON_FAILURE = 2000;
+  M5.begin(false, true, true, true, true);
+  M5.SHT30.Begin();
+  M5.RTC.begin();
+
+  WiFi.begin(WiFiInfo::SSID, WiFiInfo::PASS);
+
+  gfx.init();
+  gfx.setEpdMode(epd_mode_t::epd_fast);
+  gfx.setRotation(1);
+  gfx.setFont(&fonts::lgfxJapanMinchoP_40);
+  gfx.setTextSize(FONT_SIZE_SMALL);
+
+  gfx.print("Подключение к WIFI");
+  for (int cnt_retry = 0;
+       cnt_retry < WIFI_CONNECT_RETRY_MAX && !WiFi.isConnected();
+       cnt_retry++)
+  {
+    delay(500);
+    gfx.print(".");
+  }
+  gfx.println("");
+  if (WiFi.isConnected())
+  {
+    wifi_signal = WiFi.RSSI(); // Get Wifi Signal strength now, because the WiFi will be turned off to save power!
+    gfx.print("IP: ");
+    gfx.println(WiFi.localIP());
+  }
+  else
+  {
+    gfx.println("Ошибка подключения к Wi-Fi");
+    delay(WAIT_ON_FAILURE);
+  }
+
+  xMutex = xSemaphoreCreateMutex();
+  if (xMutex != nullptr)
+  {
+    xSemaphoreGive(xMutex);
+    xTaskCreatePinnedToCore(handleButton, "handleButton", 4096, nullptr, 1, nullptr, 1);
+  }
+  else
+  {
+    gfx.println("Ошибка создания задачи для кнопки");
+  }
+  syncNTPTimeRequest();
+  MakehttpRequest();
+  gfx.println("Инициализация завершена");
+  delay(1000);
+  gfx.setTextSize(FONT_SIZE_LARGE);
+  prettyEpdRefresh(gfx);
+  gfx.setCursor(0, 0);
+
+}
+//#########################################################################################
 void loop(void)
 { 
-  constexpr uint_fast16_t SLEEP_SEC = 5;
-  constexpr uint_fast32_t TIME_SYNC_CYCLE = 7 * 3600 * 24 / SLEEP_SEC;
+  constexpr uint_fast16_t SLEEP_SEC = 30;
+  constexpr uint_fast32_t TIME_SYNC_CYCLE = 1 * 360 / SLEEP_SEC;
 
   static uint32_t cnt = 0;
 
   xSemaphoreTake(xMutex, portMAX_DELAY);
 
   M5.SHT30.UpdateData();
-  tem = M5.SHT30.GetTemperature();
-  hum = M5.SHT30.GetRelHumidity();
+  local_temp = M5.SHT30.GetTemperature();
+  local_humidity = M5.SHT30.GetRelHumidity();
 
   rtc_date_t date;
   rtc_time_t time;
 
   M5.RTC.getTime(&time);
   M5.RTC.getDate(&date);
-  
+
+    cnt++;
+  if (cnt == TIME_SYNC_CYCLE)
+  {
+    syncNTPTimeRequest();
+    MakehttpRequest();
+    cnt = 0;
+  }
   
   gfx.startWrite();
   gfx.fillScreen(TFT_WHITE);
   gfx.fillRect(0.57 * M5PAPER_WIDTH, 0, 3, M5PAPER_HEIGHT, TFT_BLACK); // 960*0.57 = 547.2
 
-  constexpr uint_fast16_t offset_y = 30;
-  constexpr uint_fast16_t offset_x = 30;
+  constexpr uint_fast16_t offset_y = 20;
+  constexpr uint_fast16_t offset_x = 20;
   
-  weatherId   = upweatherId;
-  weatherMain = upweatherMain;
-  weatherDesc = upweatherDesc;
-  weatherIcon = upweatherIcon;
-  sunrise     = upsunrise;
-  sunset      = upsunset;
-
   gfx.setCursor(0, offset_y);
   gfx.setClipRect(offset_x, offset_y, M5PAPER_WIDTH - offset_x, M5PAPER_HEIGHT - offset_y);
   gfx.setTextSize(FONT_SIZE_MEDIUM);
-  gfx.printf("Ho Chi Minh City, VN\r\n");
+  // gfx.printf("%s, ", weatherCity);
+  // gfx.printf("%s\r\n", weatherCountry);
+  gfx.printf("Москва,Россия\r\n");
 
-  showWeatherInfo(weatherDesc, offset_x, offset_y + 50);
-
+  showWeatherInfo(offset_x, offset_y + 50);
   showSunriseSunset(offset_x + 280, offset_y + 90);
 
   gfx.drawLine(0, 335, 0.57 * M5PAPER_WIDTH, 335, BLACK);
-  showTHPInfo(tem, hum, pressure, offset_x, 350);
+  showTHPInfo(local_temp, local_humidity, pressure, offset_x, 350);
 
   gfx.clearClipRect();
 
@@ -619,9 +675,9 @@ void loop(void)
   gfx.setTextSize(FONT_SIZE_LARGE);
   gfx.setClipRect(x, offset_y, M5PAPER_WIDTH - offset_x - x, M5PAPER_HEIGHT - offset_y);
 
-  gfx.printf("%02d:%02d:%02d\r\n", time.hour, time.min, time.sec);
+  gfx.printf("%02d:%02d\r\n", time.hour, time.min);
   gfx.setTextSize(FONT_SIZE_MEDIUM);
-  gfx.printf("%04d/%02d/%02d ", date.year, date.mon, date.day);
+  gfx.printf("%02d.%02d.%04d ",  date.day, date.mon, date.year);
   gfx.println(weekdayToString(date.week));
 
   gfx.clearClipRect();
@@ -635,19 +691,19 @@ void loop(void)
 
   showStatusInfo(x, offset_y_info + 90, wifi_signal);
 
-  gfx.setTextSize(FONT_SIZE_MEDIUM);
+  gfx.setTextSize(FONT_SIZE_SMALL);
 
   gfx.setCursor(0, offset_y_info + 25);
   gfx.print("NTP: ");
 
   if (date_ntp.year == 1970)
   {
-    gfx.print("NOT SYNC"); // not initialized
+    gfx.print("Нет синхр"); // not initialized
   }
   else
   {
-    gfx.printf("%02d/%02d %02d:%02d",
-               date_ntp.mon, date_ntp.day,
+    gfx.printf("%02d.%02d %02d:%02d",
+               date_ntp.day, date_ntp.mon,
                time_ntp.hour, time_ntp.min);
   }
 
@@ -655,14 +711,7 @@ void loop(void)
   gfx.setTextSize(FONT_SIZE_LARGE);
   gfx.endWrite();
 
-  cnt++;
-  if (cnt == TIME_SYNC_CYCLE)
-  {
-    syncNTPTimeVN();
-    cnt = 0;
-  }
   xSemaphoreGive(xMutex);
   delay(SLEEP_SEC * 1000);
-  MakehttpRequest();
 
 }
