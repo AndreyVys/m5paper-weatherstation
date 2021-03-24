@@ -14,19 +14,19 @@ String weekdayToString(const int8_t weekDay)
     switch (weekDay)
     {
     case 0:
-        return String("Sun");
+        return String("Вс");
     case 1:
-        return String("Mon");
+        return String("Пн");
     case 2:
-        return String("Tue");
+        return String("Вт");
     case 3:
-        return String("Wed");
+        return String("Ср");
     case 4:
-        return String("Thu");
+        return String("Чт");
     case 5:
-        return String("Fri");
+        return String("Пт");
     case 6:
-        return String("Sat");
+        return String("Сб");
     }
     return String("");
 }
