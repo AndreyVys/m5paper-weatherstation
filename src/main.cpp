@@ -15,9 +15,9 @@
 #define timezone  3
 
 // Set location and API key
-String LocationCity = "Moscow";
+String LocationCity = "Vologda";
 String LocationCountry = "RU";
-String API_Key  = "xxxxxxxxxxxxxxxx";
+String API_Key  = "06b62fdf29f6e69fbe6573e443d9ec59";
 String Language = "ru";
 
 int wifi_signal;
@@ -124,8 +124,10 @@ void showWeatherInfo(uint_fast16_t offset_x, uint_fast16_t offset_y)
 {
 
   // Print weather description
+  gfx.setTextSize(FONT_SIZE_SMALL);
   gfx.setCursor(offset_x, offset_y);
   gfx.printf("%s\r\n", weatherDesc);
+  gfx.setTextSize(FONT_SIZE_MEDIUM);
   
   // Draw weather icon
   WeatherIcons.createSprite(140, 121);
@@ -660,7 +662,7 @@ void loop(void)
   gfx.setTextSize(FONT_SIZE_MEDIUM);
   // gfx.printf("%s, ", weatherCity);
   // gfx.printf("%s\r\n", weatherCountry);
-  gfx.printf("Москва,Россия\r\n");
+  gfx.printf("Вологда,Россия\r\n");
 
   showWeatherInfo(offset_x, offset_y + 50);
   showSunriseSunset(offset_x + 280, offset_y + 90);
