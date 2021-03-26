@@ -6,33 +6,34 @@ https://github.com/estshorter/m5paper-dashboard
 
 ## How to use
 Change your Wi-Fi parameters in `src/WiFiInfo.h`
+```
 constexpr auto SSID = "wifi"; //your SSID
 constexpr auto PASS = "12345678"; // your password
-
+```
 
 Change parameters in `src\main.cpp`
-
+```
 #define timezone  3 //your timezone
-
+```
 see https://openweathermap.org
-
+```
 String LocationCity = "Moscow"; // your city 
 String LocationCountry = "RU"; // your country 
 String API_Key  = "";
 String Language = "ru";
-.....
+```
 
 change ntp servers and timezone
-
+```
 constexpr auto NTP_SERVER1 = "0.ru.pool.ntp.org";
 constexpr auto NTP_SERVER2 = "1.ru.pool.ntp.org";
 constexpr auto NTP_SERVER3 = "2.ru.pool.ntp.org";
 constexpr auto TIME_ZONE = "MSK-3";
-
+```
 change description on display
-
+```
 gfx.printf("Москва,Россия\r\n");
-
+```
 Weather, temmperature, humidity, visibility, pressure, wind ... icons are converted to "C" codes and located at:
 - `scr/WeatherIcons.c`
 - `scr/THPIcons.c`
