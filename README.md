@@ -15,7 +15,7 @@ Change parameters in `src\main.cpp`
 ```
 #define timezone  3 //your timezone
 ```
-see https://openweathermap.org
+find your city on https://openweathermap.org/find
 ```
 String LocationCity = "Moscow"; // your city 
 String LocationCountry = "RU"; // your country 
@@ -30,11 +30,7 @@ constexpr auto NTP_SERVER2 = "1.ru.pool.ntp.org";
 constexpr auto NTP_SERVER3 = "2.ru.pool.ntp.org";
 constexpr auto TIME_ZONE = "MSK-3";
 ```
-change description on display
-```
-gfx.printf("Москва,Россия\r\n");
-```
-Weather, temmperature, humidity, visibility, pressure, wind ... icons are converted to "C" codes and located at:
+Weather, temperature, humidity, visibility, pressure, wind ... icons are converted to "C" codes and located at:
 - `scr/WeatherIcons.c`
 - `scr/THPIcons.c`
 - `scr/WindIcons.c`
