@@ -134,7 +134,7 @@ void showWeatherInfo(uint_fast16_t offset_x, uint_fast16_t offset_y)
   WeatherIcons.setSwapBytes(true);
   WeatherIcons.fillSprite(WHITE);
 
-  if(0 == strcmp(weatherIcon,"01d"))
+if(0 == strcmp(weatherIcon,"01d"))
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC01D);
   else if (0 == strcmp(weatherIcon,"01n"))
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC01N);
@@ -386,7 +386,7 @@ http.begin("http://api.openweathermap.org/data/2.5/weather?q=" + LocationCity + 
  
 int httpCode = http.GET();  // Sending the request
 
-if (httpCode == 200)  // Checking the returning code
+if (httpCode == HTTP_CODE_OK)  // Checking the returning code
     {
        String payload = http.getString();   // Getting the request response payload
        StaticJsonDocument<1024> doc;
@@ -642,7 +642,7 @@ void loop(void)
   M5.RTC.getTime(&time);
   M5.RTC.getDate(&date);
 
-    cnt++;
+  cnt++;
   if (cnt == TIME_SYNC_CYCLE)
   {
     syncNTPTimeRequest();
@@ -660,9 +660,8 @@ void loop(void)
   gfx.setCursor(0, offset_y);
   gfx.setClipRect(offset_x, offset_y, M5PAPER_WIDTH - offset_x, M5PAPER_HEIGHT - offset_y);
   gfx.setTextSize(FONT_SIZE_MEDIUM);
-  // gfx.printf("%s, ", weatherCity);
-  // gfx.printf("%s\r\n", weatherCountry);
-  gfx.printf("Вологда,Россия\r\n");
+  gfx.printf("%s,%s\r\n", weatherCity, weatherCountry);
+ // gfx.printf("Вологда,Россия\r\n");
 
   showWeatherInfo(offset_x, offset_y + 50);
   showSunriseSunset(offset_x + 280, offset_y + 90);
