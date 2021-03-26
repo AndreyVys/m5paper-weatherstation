@@ -96,7 +96,7 @@ void showTHPInfo(float temperature, float humidity, uint_fast8_t pressureinfo, u
   gfx.printf("%02.1f%%", humidity);
   // Print pressure value
   gfx.setCursor(offset_x + 370, offset_y);
-  gfx.printf("%03dмм\r\n", pressureinfo-pressureinfo/3); //pressure in mm
+  gfx.printf("%03dмм\r\n", pressureinfo); //pressure in mm
   
   // Draw temperature icon
   THPIcons.createSprite(112, 128);
@@ -456,7 +456,7 @@ if (httpCode == 200)  // Checking the returning code
          JsonObject main = doc["main"];
          temp =        (float)main["temp"]-273.15;                      // Get temperature in °C
          humidity =    (uint_fast8_t)main["humidity"];                     // Get humidity in %
-         pressure =    (uint_fast8_t)main["pressure"];            // Get pressure in bar
+         pressure =    (uint_fast8_t)main["pressure"]*0.750062;            // Get pressure in mm
          visibility =  (float)doc["visibility"];         // Get visibility in m
          weatherCity = (const char*)doc["name"];
 
