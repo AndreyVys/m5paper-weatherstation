@@ -20,6 +20,7 @@ String LocationCountry = "RU";
 String API_Key  = "06b62fdf29f6e69fbe6573e443d9ec59";
 String Language = "ru";
 
+
 int wifi_signal;
 
 // SHT30 temperature and humidity parameters
@@ -33,10 +34,10 @@ uint_fast8_t pressure = 0;
 float wind_speed = 0.0;
 float wind_degree = 0.0;
 
-const char* weatherDesc="";
-const char* weatherIcon="";
-const char* weatherCity="";
-const char* weatherCountry="";
+String weatherDesc="";
+String weatherIcon="";
+String weatherCity=LocationCity;
+String weatherCountry=LocationCountry;
 
 time_t sunrise = 0;
 time_t sunset = 0;
@@ -126,49 +127,49 @@ void showWeatherInfo(uint_fast16_t offset_x, uint_fast16_t offset_y)
   // Print weather description
   gfx.setTextSize(FONT_SIZE_SMALL);
   gfx.setCursor(offset_x, offset_y);
-  gfx.printf("%s\r\n", weatherDesc);
+  gfx.printf("%s\r\n", weatherDesc.c_str());
   gfx.setTextSize(FONT_SIZE_MEDIUM);
   
   // Draw weather icon
   WeatherIcons.createSprite(140, 121);
   WeatherIcons.setSwapBytes(true);
   WeatherIcons.fillSprite(WHITE);
-
-if(0 == strcmp(weatherIcon,"01d"))
+  
+  if(weatherIcon=="01d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC01D);
-  else if (0 == strcmp(weatherIcon,"01n"))
+  else if (weatherIcon=="01n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC01N);
-  else if (0 == strcmp(weatherIcon,"02d"))
+  else if (weatherIcon=="02d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC02D);
-  else if (0 == strcmp(weatherIcon,"02n"))
+  else if (weatherIcon=="02n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC02N);
-  else if (0 == strcmp(weatherIcon,"03d"))
+  else if (weatherIcon=="03d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC03D);
-  else if (0 == strcmp(weatherIcon,"03n"))
+  else if (weatherIcon=="03n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC03N);
-  else if (0 == strcmp(weatherIcon,"04d"))
+  else if (weatherIcon=="04d")
     WeatherIcons.pushImage(0, 0, 140, 121, (uint16_t *)PIC04D);
-  else if (0 == strcmp(weatherIcon,"04n"))
+  else if (weatherIcon=="04n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC04N);
-  else if (0 == strcmp(weatherIcon,"09d"))
+  else if (weatherIcon=="09d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC09D);
-  else if (0 == strcmp(weatherIcon,"09n"))
+  else if (weatherIcon=="09n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC09N);
-  else if (0 == strcmp(weatherIcon,"10d"))
+  else if (weatherIcon=="10d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC10D);
-  else if (0 == strcmp(weatherIcon,"10n"))
+  else if (weatherIcon=="10n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC10N);
-  else if (0 == strcmp(weatherIcon,"11d"))
+  else if (weatherIcon=="11d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC11D);
-  else if (0 == strcmp(weatherIcon,"11n"))
+  else if (weatherIcon=="11n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC11N);
-  else if (0 == strcmp(weatherIcon,"13d"))
+  else if (weatherIcon=="13d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC13D);
-  else if (0 == strcmp(weatherIcon,"13n"))
+  else if (weatherIcon=="13n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC13N);
-  else if (0 == strcmp(weatherIcon,"50d"))
+  else if (weatherIcon=="50d")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC50D);
-  else if (0 == strcmp(weatherIcon,"50n"))
+  else if (weatherIcon=="50n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC50N);
   // else
   // {
@@ -176,6 +177,8 @@ if(0 == strcmp(weatherIcon,"01d"))
      // gfx.printf("Загрузка........\r\n");
      // WeatherIcons.pushImage(0, 0, 120, 120, (uint16_t *)LOADING120x120);
   // }
+
+
   WeatherIcons.pushSprite(offset_x + 50, offset_y + 80);
 
   // Print temperature value from openweathermap
@@ -660,8 +663,7 @@ void loop(void)
   gfx.setCursor(0, offset_y);
   gfx.setClipRect(offset_x, offset_y, M5PAPER_WIDTH - offset_x, M5PAPER_HEIGHT - offset_y);
   gfx.setTextSize(FONT_SIZE_MEDIUM);
-  gfx.printf("%s,%s\r\n", weatherCity, weatherCountry);
- // gfx.printf("Вологда,Россия\r\n");
+  gfx.printf("%s,%s\r\n", weatherCity.c_str(), weatherCountry.c_str());
 
   showWeatherInfo(offset_x, offset_y + 50);
   showSunriseSunset(offset_x + 280, offset_y + 90);
