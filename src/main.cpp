@@ -171,14 +171,12 @@ void showWeatherInfo(uint_fast16_t offset_x, uint_fast16_t offset_y)
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC50D);
   else if (weatherIcon=="50n")
     WeatherIcons.pushImage(0, 0, 140, 120, (uint16_t *)PIC50N);
-  // else
-  // {
-     // gfx.setCursor(offset_x, offset_y);
-     // gfx.printf("Загрузка........\r\n");
-     // WeatherIcons.pushImage(0, 0, 120, 120, (uint16_t *)LOADING120x120);
-  // }
-
-
+   else
+   {
+      gfx.setCursor(offset_x, offset_y);
+      gfx.printf("Загрузка...\r\n");
+      WeatherIcons.pushImage(0, 0, 120, 120, (uint16_t *)LOADING120x120);
+   }
   WeatherIcons.pushSprite(offset_x + 50, offset_y + 80);
 
   // Print temperature value from openweathermap
